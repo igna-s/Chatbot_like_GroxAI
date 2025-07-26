@@ -1,4 +1,4 @@
-# 🤖 Real-Time Conversational Chatbot with Gemini and RVC 🎙️
+# 🤖 Real-Time Conversational Chatbot with Gemini and RVC 🎙️ (Under construction)
 
 An advanced conversational AI prototype that uses Google Gemini 2.5 Flash for intelligent interaction and Applio for real-time voice cloning (TTS + RVC).
 
