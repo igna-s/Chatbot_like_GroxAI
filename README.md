@@ -16,12 +16,12 @@ An advanced conversational AI prototype that uses Google Gemini 2.5 Flash for in
 
 Here’s how the main repository files are organized:
 
-- `Final_Test.ipynb`: The main notebook to run a full demonstration of the system, integrating voice input, Gemini, and cloned voice output.
-- `Links.txt`: A curated list of useful links and resources for the technologies used in the project.
+- `Final_Test.ipynb`: The main notebook to run a full demonstration of the system, integrating text input, Gemini, and cloned voice output.
+- `Links.txt`: A list of useful links and resources for the technologies used in the project.
 
 **`Extra/` Folder:**
 
-- `preprosessing_audio_RVC_training.ipynb`: A crucial notebook containing the process for preparing your audio datasets. **This is the first step to training a custom voice model in Applio.**
+- `preprosessing_audio_RVC_training.ipynb`: A notebook containing the process for preparing your audio datasets. **This is the first step to training a custom voice model**
 
 **`Tests/` Folder:**
 
@@ -36,14 +36,14 @@ Here’s how the main repository files are organized:
 
 ### ⚙️ How It Works
 
-1.  **RVC Model:** You can train your model from scratch or find a pre-trained RVC model in `Links.txt` (Easier).
+1.  **RVC Model:** You can train your model from scratch (Not implemented the training part) or find a pre-trained RVC model in `Links.txt` (Easier).
 2.  **Text Input:** The user types the text.
-3.  **AI Processing:** The transcribed text is sent to **Gemini 1.5 Flash**.
+3.  **AI Processing:** The transcribed text is sent to **Gemini 2.5 Flash**.
 4.  **Intelligent Response:** Gemini processes the input and generates a coherent text response.
 5.  **Voice Generation and Cloning:**
     - The text from Gemini is sent to the **Applio TTS engine** to create a base audio file.
     - Immediately, the **RVC model** transforms that base audio, applying the characteristics of the cloned voice.
-6.  **Audio Output:** The system plays the final audio response, which sounds as if the AI is speaking with the trained voice.
+6.  **Audio Output:** The system plays the final audio response, which sounds as if the AI is speaking with the trained voice (In my examples i used the voice and personality of Rin Tohsaka).
 
 ---
 
@@ -55,7 +55,7 @@ Simply run `Final_Test.ipynb` to perform TTS + RVC and interact with a simple AI
 
 ### 🎯 To-Do
 
-- Acquire a better graphics card to run `AI_with_scrrenshots.ipynb` locally.
+- Run `AI_with_scrrenshots.ipynb` model with TTS&RVC Localy.
 - Increase processing speed.
 - Integrate a VTuber model.
 
