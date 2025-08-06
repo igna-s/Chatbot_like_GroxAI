@@ -1,15 +1,19 @@
-RVC pretrained models
-https://voice-models.com/
+Online Viewer to preview model, background, and animations
+🔗 https://vrm-viewer.ownverse.world/
+(A web-based VRM viewer where you can load your 3D character, set a background, and apply animations.)
 
-Applio Example
-https://colab.research.google.com/github/iahispano/applio/blob/master/assets/Applio_NoUI.ipynb
+3D Backgrounds (background.hdr)
+🔗 https://polyhaven.com/hdris
+(Free high-quality HDR environments to use as 3D scene backgrounds.)
 
-Gemini Live Documentation
-https://ai.google.dev/gemini-api/docs/live-guide?hl=es-419
+VRM Models (waifu.vrm)
+🔗 https://hub.vroid.com
+(A platform to download or share VRoid-created 3D character models in VRM format.)
 
-Prices (I Used free)
-https://ai.google.dev/gemini-api/docs/pricing?hl=es-419
+Animations (idle.vrma, anim_1.vrma … anim_n.vrma)
+🔗 https://mixamo.com
+(A free library of motion capture animations that can be applied to 3D characters.)
 
-Other solution
-Azure (Another option for TTS, but is paid)
-W-OKADA ("LIVE" RVC)
+
+Reference Audio (reference.mp3)
+(An example voice that can be used to speak with your custom voice)

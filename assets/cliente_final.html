@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Interactive VRM Viewer (v4.3 - Mobile Ready)</title>
+    <style>
+        /* FIX 2: Added styles for a better app-like feel on mobile */
+        body {
+            margin: 0;
+            overflow: hidden; /* Prevent scrollbars */
+            background-color: #1a1a1a;
+            overscroll-behavior: none; /* Prevent "pull-to-refresh" */
+            -webkit-user-select: none; /* Disable text selection */
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        canvas { display: block; }
+
+        #loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(20, 20, 30, 0.98);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 999;
+            color: white;
+            font-family: sans-serif;
+            opacity: 1;
+            transition: opacity 0.8s ease-in-out;
+        }
+
+        #loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 6px solid #f3f3f3;
+            border-top: 6px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1.2s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* FIX 3: Improved button style for mobile touch targets */
+        #controlButton {
+            position: absolute;
+            bottom: 25px; /* More space from the edge */
+            right: 25px;
+            font-size: 28px; /* Larger icon */
+            width: 70px;  /* Larger touch target */
+            height: 70px;
+            border-radius: 50%;
+            border: 3px solid white;
+            background-color: rgba(0,0,0,0.6);
+            color: white;
+            cursor: pointer;
+            display: none;
+            z-index: 10;
+            transition: background-color 0.3s, transform 0.1s;
+            -webkit-tap-highlight-color: transparent; /* Remove tap highlight */
+            touch-action: manipulation; /* Remove tap delay */
+        }
+        #controlButton:disabled { cursor: not-allowed; opacity: 0.5; }
+        #controlButton.recording { background-color: rgba(255, 0, 0, 0.7); }
+        #controlButton:active { transform: scale(0.95); } /* Press-down effect */
+
+    </style>
+</head>
+<body>
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <p>Loading avatar and animations...</p>
+    </div>
+
+    <button id="controlButton">▶</button>
+    <audio id="audioPlayer" crossorigin="anonymous"></audio>
+
+    <script type="importmap">
+    { "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.177.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.177.0/examples/jsm/",
+        "@pixiv/three-vrm": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3/lib/three-vrm.module.min.js"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
+        import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
+
+        // -- Global variables for the scene, renderer, and animation --
+        let scene, camera, renderer, clock, mixer;
+        let currentVrm = null;
+        let idleAction, currentAction;
+        const controlButton = document.getElementById('controlButton');
+        const audioPlayer = document.getElementById('audioPlayer');
+        const assetPathPrefix = '/assets/';
+        const animationsMap = new Map();
+        const talkingAnimationNames = ['anim_1', 'anim_2', 'anim_3'];
+
+        // -- Audio recording variables --
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
+
+        // -- State manager for automatic blinking --
+        const blinkManager = {
+            isBlinking: false, blinkTimer: 0, nextBlinkTime: 0, timeSinceLastBlink: 0,
+            BLINK_DURATION: 0.15, BLINK_INTERVAL_MIN: 2.0, BLINK_INTERVAL_MAX: 8.0,
+        };
+        
+        // -- State manager for audio-driven lip synchronization --
+        const lipSyncContext = {
+            initialized: false, audioContext: null, analyser: null, dataArray: null,
+            currentVolume: 0,
+        };
+
+        /**
+         * @dev Maps Mixamo's bone names to the VRM humanoid bone standard.
+         * This is crucial for retargeting animations from Mixamo skeletons to VRM models.
+         * The key is the Mixamo bone name, and the value is the corresponding VRM standard name.
+         */
+        const mixamoVRMRigMap = {
+            mixamorigHips: 'hips', mixamorigSpine: 'spine', mixamorigSpine1: 'chest',
+            mixamorigSpine2: 'upperChest', mixamorigNeck: 'neck', mixamorigHead: 'head',
+            mixamorigLeftShoulder: 'leftShoulder', mixamorigLeftArm: 'leftUpperArm',
+            mixamorigLeftForeArm: 'leftLowerArm', mixamorigLeftHand: 'leftHand',
+            mixamorigRightShoulder: 'rightShoulder', mixamorigRightArm: 'rightUpperArm',
+            mixamorigRightForeArm: 'rightLowerArm', mixamorigRightHand: 'rightHand',
+            mixamorigLeftUpLeg: 'leftUpperLeg', mixamorigLeftLeg: 'leftLowerLeg',
+            mixamorigLeftFoot: 'leftFoot', mixamorigLeftToeBase: 'leftToes',
+            mixamorigRightUpLeg: 'rightUpperLeg', mixamorigRightLeg: 'rightLowerLeg',
+            mixamorigRightFoot: 'rightFoot', mixamorigRightToeBase: 'rightToes',
+        };
+
+        // -- Schedules the next blink to occur at a random interval --
+        function scheduleNextBlink() {
+            blinkManager.nextBlinkTime = blinkManager.BLINK_INTERVAL_MIN + Math.random() * (blinkManager.BLINK_INTERVAL_MAX - blinkManager.BLINK_INTERVAL_MIN);
+        }
+
+        /**
+         * @dev Loads a Mixamo animation (FBX format) and retargets it to the provided VRM model.
+         * It processes each track (position, rotation) in the animation, maps it to the
+         * corresponding VRM bone, and adjusts the transforms to fit the VRM's skeleton.
+         * @param {string} url - The URL of the FBX animation file.
+         * @param {object} vrm - The loaded VRM object.
+         * @returns {Promise<THREE.AnimationClip>} A promise that resolves with the retargeted animation clip.
+         */
+        async function loadMixamoAnimation(url, vrm) {
+            const loader = new FBXLoader();
+            const asset = await loader.loadAsync(url);
+            const clip = THREE.AnimationClip.findByName(asset.animations, 'mixamo.com');
+            const tracks = [];
+
+            // -- Prepare quaternions and scaling factors for transform adjustments --
+            const restRotationInverse = new THREE.Quaternion();
+            const parentRestWorldRotation = new THREE.Quaternion();
+            const _quatA = new THREE.Quaternion();
+            const motionHipsHeight = asset.getObjectByName('mixamorigHips').position.y;
+            const vrmHipsHeight = vrm.humanoid.getNormalizedBoneNode('hips').position.y;
+            const hipsPositionScale = vrmHipsHeight / motionHipsHeight;
+
+            clip.tracks.forEach((track) => {
+                const trackSplitted = track.name.split('.');
+                const mixamoRigName = trackSplitted[0];
+                const vrmBoneName = mixamoVRMRigMap[mixamoRigName];
+                const vrmNodeName = vrm.humanoid?.getNormalizedBoneNode(vrmBoneName)?.name;
+                
+                if (vrmNodeName != null) {
+                    const propertyName = trackSplitted[1];
+                    const mixamoRigNode = asset.getObjectByName(mixamoRigName);
+
+                    // -- Calculate and apply rotation correction to align Mixamo's T-pose with VRM's T-pose --
+                    mixamoRigNode.getWorldQuaternion(restRotationInverse).invert();
+                    mixamoRigNode.parent.getWorldQuaternion(parentRestWorldRotation);
+
+                    if (track instanceof THREE.QuaternionKeyframeTrack) {
+                        for (let i = 0; i < track.values.length; i += 4) {
+                            const flatQuaternion = track.values.slice(i, i + 4);
+                            _quatA.fromArray(flatQuaternion).premultiply(parentRestWorldRotation).multiply(restRotationInverse).toArray(flatQuaternion);
+                            flatQuaternion.forEach((v, index) => { track.values[index + i] = v; });
+                        }
+                        tracks.push(new THREE.QuaternionKeyframeTrack(`${vrmNodeName}.${propertyName}`, track.times, track.values.map((v, i) => (vrm.meta?.metaVersion === '0' && i % 2 === 0 ? -v : v))));
+                    } else if (track instanceof THREE.VectorKeyframeTrack) {
+                        // -- Adjust position keyframes, especially for the hips, to match the VRM's height --
+                        const value = track.values.map((v, i) => (vrm.meta?.metaVersion === '0' && i % 3 !== 1 ? -v : v) * hipsPositionScale);
+                        tracks.push(new THREE.VectorKeyframeTrack(`${vrmNodeName}.${propertyName}`, track.times, value));
+                    }
+                }
+            });
+            return new THREE.AnimationClip(clip.name, clip.duration, tracks);
+        }
+
+        /**
+         * @dev Initializes the Web Audio API for lip-sync analysis.
+         * It creates an AudioContext, connects the audio player element, and sets up an
+         * AnalyserNode to extract frequency data for mouth movement.
+         */
+        function setupLipSync() {
+            if (lipSyncContext.initialized) return;
+            lipSyncContext.audioContext = new AudioContext();
+            const source = lipSyncContext.audioContext.createMediaElementSource(audioPlayer);
+            lipSyncContext.analyser = lipSyncContext.audioContext.createAnalyser();
+            lipSyncContext.analyser.fftSize = 256;
+            const bufferLength = lipSyncContext.analyser.frequencyBinCount;
+            lipSyncContext.dataArray = new Uint8Array(bufferLength);
+            source.connect(lipSyncContext.analyser);
+            lipSyncContext.analyser.connect(lipSyncContext.audioContext.destination);
+            lipSyncContext.initialized = true;
+        }
+        
+        /**
+         * @dev Preloads all necessary animations (idle and talking) before showing the main scene.
+         * This prevents stuttering when an animation is played for the first time.
+         * After loading, it waits for a fixed duration before hiding the loading screen.
+         */
+        async function preloadAnimations() {
+            console.log('Starting animation preload...');
+            const allAnimationNames = ['idle', ...talkingAnimationNames];
+            for (const name of allAnimationNames) {
+                try {
+                    const clip = await loadMixamoAnimation(assetPathPrefix + name + '.fbx', currentVrm);
+                    clip.name = name; 
+                    animationsMap.set(name, clip);
+                    console.log(` -> ${name}.fbx preloaded.`);
+                } catch (error) {
+                    console.error(`Error preloading animation ${name}.fbx:`, error);
+                }
+            }
+            console.log('--- Animation preload finished. ---');
+            console.log('Components loaded. Waiting an additional 10 seconds...');
+
+            // -- Hide the loading screen and enable controls after a delay --
+            setTimeout(() => {
+                const loadingOverlay = document.getElementById('loading-overlay');
+                loadingOverlay.classList.add('hidden');
+
+                loadingOverlay.addEventListener('transitionend', () => {
+                    loadingOverlay.style.display = 'none';
+                }, { once: true });
+
+                console.log('Showing scene and activating controls.');
+                controlButton.disabled = false;
+                controlButton.style.display = 'block';
+                setupIdleAnimation();
+            }, 10000); // 10-second artificial wait
+        }
+
+        // -- Sets up and plays the default idle animation --
+        function setupIdleAnimation() {
+            if (!animationsMap.has('idle')) return;
+            const idleClip = animationsMap.get('idle');
+            idleAction = mixer.clipAction(idleClip);
+            idleAction.play();
+            currentAction = idleAction;
+        }
+
+        /**
+         * @dev Selects and plays a random talking animation from the predefined list.
+         * It ensures the next animation is different from the current one and smoothly
+         * cross-fades between them.
+         */
+        function playRandomTalkingAnimation() {
+            if (audioPlayer.paused || !currentAction) return;
+            
+            let nextAnimationName;
+            const currentClipName = currentAction.getClip() ? currentAction.getClip().name : null;
+            // -- Pick a new animation that is different from the current one --
+            do {
+                nextAnimationName = talkingAnimationNames[Math.floor(Math.random() * talkingAnimationNames.length)];
+            } while (talkingAnimationNames.length > 1 && nextAnimationName === currentClipName);
+
+            const nextClip = animationsMap.get(nextAnimationName);
+            if (!nextClip) return;
+
+            const nextAction = mixer.clipAction(nextClip);
+            nextAction.reset().setLoop(THREE.LoopOnce, 1).play();
+            nextAction.clampWhenFinished = true; // Prevents the animation from reverting to the first frame on completion
+
+            // -- Smoothly transition from the current animation to the next one --
+            currentAction.crossFadeTo(nextAction, 0.5);
+            currentAction = nextAction;
+        }
+
+        /**
+         * @dev Main function to load the VRM model.
+         * It initializes the GLTFLoader with the VRM plugin, adds the model to the scene,
+         * sets up the animation mixer, and then triggers the animation preloading process.
+         * @param {string} modelUrl - The URL of the .vrm file.
+         */
+        async function loadVRM(modelUrl) {
+            const loader = new GLTFLoader();
+            loader.register(parser => new VRMLoaderPlugin(parser));
+            try {
+                const gltf = await loader.loadAsync(modelUrl);
+                const vrm = gltf.userData.vrm;
+                if (currentVrm) scene.remove(currentVrm.scene);
+                currentVrm = vrm;
+                scene.add(vrm.scene);
+                VRMUtils.rotateVRM0(vrm); // Corrects orientation for VRM 0.x models
+                
+                // -- Initialize the animation mixer for this VRM --
+                mixer = new THREE.AnimationMixer(currentVrm.scene);
+                // -- Listen for animation completion to chain talking animations --
+                mixer.addEventListener('finished', (e) => {
+                    if (!audioPlayer.paused && talkingAnimationNames.includes(e.action.getClip().name)) {
+                        playRandomTalkingAnimation();
+                    }
+                });
+
+                await preloadAnimations();
+            } catch (error) {
+                console.error('Error loading VRM:', error);
+                const loadingOverlay = document.getElementById('loading-overlay');
+                loadingOverlay.innerHTML = '<p>Error loading model. Please refresh the page.</p>';
+            }
+        }
+
+        // -- Starts the audio recording process using the browser's microphone --
+        async function startRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                isRecording = true;
+                audioChunks = [];
+                mediaRecorder = new MediaRecorder(stream);
+                mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
+                mediaRecorder.onstop = sendAudioToServer; // Set callback for when recording stops
+                mediaRecorder.start();
+                controlButton.classList.add('recording');
+                controlButton.textContent = '■';
+            } catch (e) { console.error('Error accessing microphone:', e); }
+        }
+
+        // -- Stops the audio recording --
+        function stopRecording() {
+            if (mediaRecorder && isRecording) {
+                mediaRecorder.stop();
+                isRecording = false;
+                controlButton.classList.remove('recording');
+                controlButton.textContent = '...'; // Intermediate state
+                controlButton.disabled = true;
+            }
+        }
+
+        /**
+         * @dev Called when recording stops. It sends the recorded audio to the server,
+         * receives a processed audio file back, and plays it.
+         */
+        async function sendAudioToServer() {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            const formData = new FormData();
+            formData.append('audio', audioBlob, 'user_audio.webm');
+            try {
+                // -- Ensure AudioContext is running (browsers may suspend it) --
+                if (!lipSyncContext.initialized) setupLipSync();
+                if (lipSyncContext.audioContext.state === 'suspended') {
+                    await lipSyncContext.audioContext.resume();
+                }
+
+                // -- Post the audio data to the backend endpoint --
+                const res = await fetch('/process_audio', { method: 'POST', body: formData });
+                if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+                const { audio_file } = await res.json();
+                
+                // -- Callback to start animations once the audio is ready to play --
+                const onAudioReady = () => {
+                    audioPlayer.play();
+                    console.log("Audio started, waiting 1.2s to animate...");
+                    setTimeout(() => {
+                        console.log("Starting animation chain.");
+                        playRandomTalkingAnimation();
+                    }, 1200); // Delay to sync animation start with audio
+                };
+                audioPlayer.addEventListener('canplaythrough', onAudioReady, { once: true });
+                audioPlayer.src = assetPathPrefix + audio_file;
+                audioPlayer.load();
+
+            } catch (e) {
+                console.error('Error communicating with the server:', e);
+                controlButton.disabled = false;
+                controlButton.textContent = '▶';
+                // -- Revert to idle animation on error --
+                if (currentAction !== idleAction) {
+                    currentAction.crossFadeTo(idleAction.reset().play(), 0.5);
+                    currentAction = idleAction;
+                }
+            }
+        }
+
+        /**
+         * @dev The main animation loop, called on every frame.
+         * It updates the animation mixer, the VRM model's state (including blinking and look-at),
+         * calculates lip-sync values, and renders the scene.
+         */
+        function animate() {
+            requestAnimationFrame(animate);
+            const dt = clock.getDelta(); // Time since last frame
+            if (mixer) mixer.update(dt);
+            
+            if (currentVrm) {
+                currentVrm.update(dt); // Update VRM components like spring bones
+                const expressionManager = currentVrm.expressionManager;
+
+                // -- Automatic Blinking Logic --
+                blinkManager.timeSinceLastBlink += dt;
+                if (blinkManager.isBlinking) {
+                    blinkManager.blinkTimer += dt;
+                    const progress = blinkManager.blinkTimer / blinkManager.BLINK_DURATION;
+                    expressionManager.setValue('blink', Math.sin(Math.PI * progress)); // Smooth blink using a sine curve
+                    if (progress >= 1.0) {
+                        blinkManager.isBlinking = false;
+                        expressionManager.setValue('blink', 0);
+                    }
+                } else if (blinkManager.timeSinceLastBlink > blinkManager.nextBlinkTime) {
+                    blinkManager.isBlinking = true;
+                    blinkManager.blinkTimer = 0;
+                    blinkManager.timeSinceLastBlink = 0;
+                    scheduleNextBlink();
+                }
+
+                // -- Lip Sync Logic --
+                if (lipSyncContext.initialized && !audioPlayer.paused) {
+                    lipSyncContext.analyser.getByteFrequencyData(lipSyncContext.dataArray);
+                    let sum = 0;
+                    for (let i = 0; i < lipSyncContext.dataArray.length; i++) { sum += lipSyncContext.dataArray[i]; }
+                    const average = sum / lipSyncContext.dataArray.length;
+                    
+                    let volume = average / 60.0; // Normalize volume
+                    volume = Math.pow(volume, 0.7); // Apply a curve to make it more responsive
+                    const targetVolume = Math.min(volume, 1.0);
+                    
+                    // -- Smoothly interpolate to the target volume to avoid jittery mouth movement --
+                    lipSyncContext.currentVolume = THREE.MathUtils.lerp(lipSyncContext.currentVolume, targetVolume, 0.4);
+                    expressionManager.setValue('aa', lipSyncContext.currentVolume); // Drive the 'aa' blend shape
+                } else if (lipSyncContext.initialized) {
+                     // -- Smoothly close the mouth when audio stops --
+                     lipSyncContext.currentVolume = THREE.MathUtils.lerp(lipSyncContext.currentVolume, 0, 0.2);
+                     expressionManager.setValue('aa', lipSyncContext.currentVolume);
+                }
+            }
+            if (renderer) renderer.render(scene, camera);
+        }
+
+        /**
+         * @dev Initializes the entire Three.js scene, camera, renderer, lighting, and controls.
+         * It also kicks off the loading of the VRM model.
+         */
+        function init() {
+            scene = new THREE.Scene();
+            clock = new THREE.Clock();
+            scheduleNextBlink();
+
+            // -- Load an HDR image for realistic environment lighting and background --
+            new RGBELoader().load(assetPathPrefix + 'background.hdr', function (texture) {
+                texture.mapping = THREE.EquirectangularReflectionMapping;
+                scene.background = texture;
+                scene.environment = texture;
+            });
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 1.4, 2.5);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.toneMapping = THREE.ACESFilmicToneMapping; // For better color and lighting
+            renderer.toneMappingExposure = 1.0;
+            document.body.appendChild(renderer.domElement);
+
+            // -- Add orbit controls to allow the user to rotate and zoom the camera --
+            const controls = new OrbitControls(camera, renderer.domElement);
+            controls.target.set(0, 1.2, 0); // Point camera at the avatar's upper body
+            controls.update();
+            
+            // -- Add basic lighting to the scene --
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(1, 1, 1).normalize();
+            scene.add(dirLight);
+            
+            // -- Handle window resizing --
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+            
+            // -- Start the application by loading the model and starting the animation loop --
+            loadVRM(assetPathPrefix + 'waifu.vrm');
+            animate();
+        }
+
+        // -- Event listener for when the audio playback finishes --
+        audioPlayer.addEventListener('ended', () => {
+            console.log('Audio finished. Returning to idle.');
+            // -- Fade back to the idle animation --
+            if (currentAction !== idleAction) {
+                currentAction.crossFadeTo(idleAction.reset().play(), 0.5);
+                currentAction = idleAction;
+            }
+            controlButton.disabled = false;
+            controlButton.textContent = '▶';
+        });
+
+        // -- Event listener for the main control button (record/stop) --
+        controlButton.addEventListener('click', () => {
+            if (isRecording) { stopRecording(); } 
+            else { startRecording(); }
+        });
+
+        // -- Start the application --
+        init();
+
+    </script>
+</body>
+</html>

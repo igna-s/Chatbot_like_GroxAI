@@ -1,0 +1,15 @@
+RVC pretrained models
+https://voice-models.com/
+
+Applio Example
+https://colab.research.google.com/github/iahispano/applio/blob/master/assets/Applio_NoUI.ipynb
+
+Gemini Live Documentation
+https://ai.google.dev/gemini-api/docs/live-guide?hl=es-419
+
+Prices (I Used free)
+https://ai.google.dev/gemini-api/docs/pricing?hl=es-419
+
+Other solution
+Azure (Another option for TTS, but is paid)
+W-OKADA ("LIVE" RVC)
