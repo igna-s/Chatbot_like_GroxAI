@@ -7,7 +7,7 @@ The entire project is designed to be **conurrent**, highly customizable, **100% 
 ## 🖼️ Avatar Preview
 
 <p align="center">
-  <img src="assets/image.png" alt="Avatar Preview" width="600"/>
+  <img src="assets/image.png" alt="Avatar Preview" width="400"/>
 </p>
 
 
