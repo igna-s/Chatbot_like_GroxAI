@@ -2,7 +2,7 @@
 
 Welcome to the **Interactive 3D AI Assistant**, a project that brings a conversational AI to life in a 3D environment. This application combines a powerful language model with a fully animated avatar, creating an engaging and interactive user experience. Speak to the avatar through your microphone, and it will listen, think, and respond to you using a custom-cloned voice, complete with real-time animations and 'lip-sync'.
 
-The entire project is designed to be **conurrent**, highly customizable, **100% free**, and runs easily in a Google Colab notebook if you don´t have a graphic card , making it accessible from any web browser without local setup.
+The entire project is designed to be **concurrent**, highly customizable, **100% free**, and runs easily in a Google Colab notebook if you don´t have a graphic card , making it accessible from any web browser without local setup.
 
 ## 🖼️ Avatar Preview
 
