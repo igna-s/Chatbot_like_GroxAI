@@ -54,4 +54,5 @@ The entire project is designed to be **concurrent**, highly customizable, **100%
 
 ## 📜 License
 
-This project has no usage restrictions. Feel free to use and evolve it!
+This project has no usage restrictions (Uses MIT or Apache libraries), except for the terms and conditions of the respective API providers. From my side, feel free to use and evolve it :D !
+
