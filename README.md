@@ -12,7 +12,7 @@ The entire project is designed to be **concurrent**, highly customizable, **100%
   <img src="assets/image.png" alt="Avatar Preview" width="400"/>
 </p>
 
-#### Video Preview
+## 🎥 Video Preview
 
 <p align="center">
   <!-- 
