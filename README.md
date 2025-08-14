@@ -10,6 +10,16 @@ The entire project is designed to be **concurrent**, highly customizable, **100%
   <img src="assets/image.png" alt="Avatar Preview" width="400"/>
 </p>
 
+---
+
+## Video Preview
+
+<p align="center">
+  <a href="assets/video.mp4" target="_blank" rel="noopener noreferrer">
+    <img src="https://img.shields.io/badge/Ver%20Video-▶-2d3748?style=for-the-badge" alt="Ver Video"/>
+  </a>
+</p>
+
 
 ## ✨ Core Features
 
