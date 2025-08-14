@@ -4,22 +4,23 @@ Welcome to the **Interactive 3D AI Assistant**, a project that brings a conversa
 
 The entire project is designed to be **concurrent**, highly customizable, **100% free**, and runs easily in a Google Colab notebook if you don´t have a graphic card , making it accessible from any web browser without local setup.
 
+---
 ## 🖼️ Avatar Preview
 
 <p align="center">
   <img src="assets/image.png" alt="Avatar Preview" width="400"/>
 </p>
 
----
 
-## Video Preview
+# Video Preview
 
 <p align="center">
-  <a href="assets/video.mp4" target="_blank" rel="noopener noreferrer">
-    <img src="https://img.shields.io/badge/Ver%20Video-▶-2d3748?style=for-the-badge" alt="Ver Video"/>
+  <a href="video_player.html" target="_blank" rel="noopener noreferrer">
+    <img src="https://img.shields.io/badge/Ver%20Video-▶-2d3748?style=for-the-badge&logo=youtube" alt="Ver Video"/>
   </a>
 </p>
 
+---
 
 ## ✨ Core Features
 
