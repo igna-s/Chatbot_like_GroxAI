@@ -5,11 +5,13 @@ Welcome to the **Interactive 3D AI Assistant**, a project that brings a conversa
 The entire project is designed to be **concurrent**, highly customizable, **100% free**, and runs easily in a Google Colab notebook if you don´t have a graphic card , making it accessible from any web browser without local setup.
 
 ---
+
 ## 🖼️ Avatar Preview
 
 <p align="center">
   <img src="assets/image.png" alt="Avatar Preview" width="400"/>
 </p>
+
 
 
 # Video Preview
