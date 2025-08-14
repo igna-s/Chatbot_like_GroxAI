@@ -6,7 +6,7 @@ The entire project is designed to be **concurrent**, highly customizable, **100%
 
 ---
 
-## 🖼️ Avatar Preview
+## 🖼️ Avatar Preview (Mobile device)
 
 <p align="center">
   <img src="assets/image.png" alt="Avatar Preview" width="400"/>
