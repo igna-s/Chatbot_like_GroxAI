@@ -27,7 +27,11 @@
 </head>
 <body>
     <video controls autoplay muted>
-        <source src="video.mp4" type="video/mp4">
+        <!-- 
+          Esta ruta funciona porque el HTML está en la raíz 
+          y busca el video dentro de la carpeta 'assets'.
+        -->
+        <source src="assets/video.mp4" type="video/mp4">
         Tu navegador no soporta la etiqueta de video.
     </video>
 </body>
