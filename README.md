@@ -70,6 +70,7 @@ The entire project is designed to be **concurrent**, highly customizable, **100%
 
 - [ ] Add more animations
 - [ ] Improve lipsync
+- [ ] Face expressions
 
 ## 📜 License
 
